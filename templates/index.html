@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MP4 转 MP3 + 语音识别</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --accent: #6366f1;
+      --accent-2: #8b5cf6;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --ok: #22c55e;
+      --err: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: radial-gradient(1200px 600px at 50% -10%, #1e293b, var(--bg));
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 32px 16px;
+    }
+    .card {
+      width: 68vw;
+      max-width: 1400px;
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 20px;
+      padding: 36px 44px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    }
+    /* 登录框保持紧凑 */
+    #loginView { width: 420px; max-width: 92vw; }
+    @media (max-width: 900px) {
+      .card { width: 94vw; padding: 28px 22px; }
+    }
+    h1 {
+      font-size: 22px;
+      margin-bottom: 6px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    h2 { font-size: 16px; margin: 26px 0 14px; color: var(--text); }
+    .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
+    label { font-size: 13px; color: var(--muted); }
+    input[type="text"], textarea, select, input[type="number"], input[type="password"] {
+      background: #0f172a;
+      color: var(--text);
+      border: 1px solid rgba(148,163,184,0.3);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; margin-bottom: 6px; }
+    .field input[type="text"], .field textarea { width: 100%; }
+    textarea { min-height: 70px; resize: vertical; }
+    input[type="password"] { width: 100%; padding: 14px; font-size: 16px; letter-spacing: 2px; }
+    .drop {
+      border: 2px dashed rgba(148,163,184,0.4);
+      border-radius: 16px;
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .2s;
+      background: rgba(15,23,42,0.4);
+    }
+    .drop:hover, .drop.dragover { border-color: var(--accent); background: rgba(99,102,241,0.08); }
+    .drop .icon { font-size: 40px; margin-bottom: 10px; }
+    .drop .hint { color: var(--muted); font-size: 13px; margin-top: 6px; }
+    .filename { margin-top: 14px; font-size: 14px; word-break: break-all; display: none; }
+    .row { display: flex; align-items: center; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+    button {
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      cursor: pointer;
+      transition: opacity .2s;
+    }
+    .btn-block { width: 100%; margin-top: 22px; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-ghost { background: transparent; border: 1px solid rgba(148,163,184,0.4); color: var(--muted); padding: 8px 14px; font-size: 13px; }
+    .progress { display: none; margin-top: 22px; }
+    .bar-bg { height: 8px; background: rgba(148,163,184,0.2); border-radius: 99px; overflow: hidden; }
+    .bar { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .2s; }
+    .status { font-size: 13px; color: var(--muted); margin-top: 10px; }
+    .result { display: none; margin-top: 18px; padding: 16px; border-radius: 12px; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); }
+    .result.error { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); }
+    .meta { font-size: 13px; color: var(--muted); margin-top: 6px; }
+    .login-msg { font-size: 13px; margin-top: 14px; min-height: 18px; }
+    .login-msg.error { color: var(--err); }
+    .login-msg.locked { color: #f59e0b; }
+    .hidden { display: none !important; }
+
+    /* 任务列表 */
+    .task-card {
+      border: 1px solid rgba(148,163,184,0.2);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      transition: all .15s;
+      background: rgba(15,23,42,0.5);
+    }
+    .task-card:hover { border-color: var(--accent); background: rgba(99,102,241,0.08); }
+    .task-card .t-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .task-card .t-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; flex: 1; }
+    .btn-del {
+      flex: 0 0 auto;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      background: transparent;
+      border: 1px solid rgba(239,68,68,0.5);
+      color: #f87171;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .btn-del:hover { background: rgba(239,68,68,0.12); }
+    .btn-retry {
+      flex: 0 0 auto;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      background: transparent;
+      border: 1px solid rgba(99,102,241,0.6);
+      color: #a5b4fc;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .btn-retry:hover { background: rgba(99,102,241,0.15); }
+    .task-card .t-desc { font-size: 13px; color: var(--muted); margin-bottom: 8px; white-space: pre-wrap; word-break: break-word; }
+    .task-card .t-foot { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
+    .badge { padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; color: #fff; }
+    .badge.done { background: var(--ok); color: #04210f; }
+    .badge.failed { background: var(--err); }
+    .badge.transcribing, .badge.converting { background: #f59e0b; }
+    .badge.queued { background: #0ea5e9; }
+    .badge.converted, .badge.created { background: #64748b; }
+    .empty { color: var(--muted); font-size: 14px; padding: 16px 0; }
+
+    /* 详情顶部按钮栏：吸顶常驻 */
+    .detail-bar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: var(--card);
+      margin: -36px -44px 0;
+      padding: 16px 44px;
+      border-bottom: 1px solid rgba(148,163,184,0.15);
+      border-radius: 20px 20px 0 0;
+    }
+    @media (max-width: 900px) {
+      .detail-bar { margin: -28px -22px 0; padding: 14px 22px; }
+    }
+
+    /* 详情说话人气泡 */
+    .bubble { display: flex; gap: 10px; margin-bottom: 14px; align-items: flex-start; }
+    .spk-tag { flex: 0 0 auto; min-width: 64px; padding: 6px 8px; border-radius: 8px; font-size: 12px; font-weight: 600; text-align: center; color: #fff; }
+    .bubble-body { background: rgba(15,23,42,0.6); border: 1px solid rgba(148,163,184,0.2); border-radius: 10px; padding: 10px 12px; font-size: 14px; line-height: 1.6; flex: 1; }
+    .bubble-time { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+    .btn-play {
+      flex: 0 0 auto;
+      align-self: center;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      background: rgba(99,102,241,0.15);
+      border: 1px solid rgba(99,102,241,0.5);
+      color: #a5b4fc;
+      border-radius: 8px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-play:hover { background: rgba(99,102,241,0.3); }
+    .btn-play.playing { background: var(--accent); color: #fff; }
+    .d-download { display: inline-block; margin-top: 6px; padding: 10px 18px; background: var(--ok); color: #04210f; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <!-- 登录视图 -->
+  <div class="card" id="loginView">
+    <h1>🔒 访问验证</h1>
+    <p class="subtitle">请输入访问密码以使用本工具。</p>
+    <input type="password" id="password" placeholder="请输入密码" autocomplete="off" />
+    <button class="btn-block" id="loginBtn">登录</button>
+    <div class="login-msg" id="loginMsg"></div>
+  </div>
+
+  <!-- 首页：任务列表（默认展示） -->
+  <div class="card hidden" id="appView">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <h1>MP4 转 MP3 + 语音识别</h1>
+      <button id="newTaskBtn" style="flex:0 0 auto;padding:10px 16px;font-size:14px;">+ 新建任务</button>
+    </div>
+    <p class="subtitle">点击「新建任务」上传视频，自动完成转 MP3 与说话人分离识别。</p>
+
+    <h2>📋 任务列表</h2>
+    <div id="taskList"><div class="empty">加载中…</div></div>
+  </div>
+
+  <!-- 新建任务视图 -->
+  <div class="card hidden" id="createView">
+    <button class="btn-ghost" id="createBackBtn">← 返回任务列表</button>
+    <h1 style="margin-top:16px;">新建任务</h1>
+    <p class="subtitle">填写任务标题与描述后一键完成：转 MP3 → 上传 → 说话人分离识别。</p>
+
+    <div class="field">
+      <label for="taskTitle">任务标题（必填）</label>
+      <input type="text" id="taskTitle" placeholder="例如：第3集 客户访谈录音" />
+    </div>
+    <div class="field">
+      <label for="taskDesc">任务描述</label>
+      <textarea id="taskDesc" placeholder="可填写背景、参与人、备注等"></textarea>
+    </div>
+
+    <div class="drop" id="drop">
+      <div class="icon">🎬</div>
+      <div>点击或拖拽视频文件到此处</div>
+      <div class="hint">支持 MP4 / MOV / MKV / AVI / WEBM</div>
+      <div class="filename" id="filename"></div>
+    </div>
+    <input type="file" id="fileInput" accept="video/*,.mp4,.mov,.mkv,.avi,.webm,.m4v" hidden />
+
+    <div class="row">
+      <label for="bitrate">音质</label>
+      <select id="bitrate">
+        <option value="128k">128 kbps</option>
+        <option value="192k" selected>192 kbps</option>
+        <option value="256k">256 kbps</option>
+        <option value="320k">320 kbps</option>
+      </select>
+      <label for="speakerCount">说话人数</label>
+      <input type="number" id="speakerCount" min="2" max="100" placeholder="自动" style="width:70px;" />
+    </div>
+
+    <button class="btn-block" id="convertBtn" disabled>一键转换并识别</button>
+
+    <div class="progress" id="progress">
+      <div class="bar-bg"><div class="bar" id="bar"></div></div>
+      <div class="status" id="status">准备中…</div>
+    </div>
+    <div class="result" id="result"></div>
+  </div>
+
+  <!-- 任务详情视图 -->
+  <div class="card hidden" id="detailView">
+    <div class="detail-bar">
+      <button class="btn-ghost" id="backBtn">← 返回任务列表</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-retry hidden" id="detailRetryBtn">↻ 重试</button>
+        <button class="btn-del" id="detailDelBtn">🗑 删除任务</button>
+      </div>
+    </div>
+    <h1 id="dTitle" style="margin-top:16px;"></h1>
+    <div class="meta" id="dDesc"></div>
+    <div class="meta" id="dMeta"></div>
+    <div id="dDownload" style="margin-top:10px;"></div>
+    <audio id="dAudio" preload="none" style="display:none;"></audio>
+    <h2 id="dAsrTitle">🗣 说话人分离识别结果</h2>
+    <div id="dAsr"></div>
+  </div>
+
+  <script>
+    let ACCESS_TOKEN = null;
+
+    const loginView = document.getElementById('loginView');
+    const appView = document.getElementById('appView');
+    const createView = document.getElementById('createView');
+    const detailView = document.getElementById('detailView');
+
+    function showOnly(view) {
+      if (typeof stopSegment === 'function') stopSegment();
+      if (typeof stopDetailPoll === 'function' && view !== detailView) stopDetailPoll();
+      [loginView, appView, createView, detailView].forEach(v => v.classList.add('hidden'));
+      view.classList.remove('hidden');
+      window.scrollTo(0, 0);
+    }
+    const passwordEl = document.getElementById('password');
+    const loginBtn = document.getElementById('loginBtn');
+    const loginMsg = document.getElementById('loginMsg');
+    let lockTimer = null;
+
+    function setLoginMsg(text, type) {
+      loginMsg.textContent = text;
+      loginMsg.className = 'login-msg' + (type ? ' ' + type : '');
+    }
+
+    function startLockCountdown(seconds) {
+      loginBtn.disabled = true; passwordEl.disabled = true;
+      if (lockTimer) clearInterval(lockTimer);
+      const tick = () => {
+        if (seconds <= 0) {
+          clearInterval(lockTimer);
+          loginBtn.disabled = false; passwordEl.disabled = false;
+          setLoginMsg('锁定已解除，可重新尝试。', ''); return;
+        }
+        const m = Math.floor(seconds / 60), s = seconds % 60;
+        setLoginMsg('登录已锁定，请于 ' + m + ' 分 ' + String(s).padStart(2,'0') + ' 秒后重试。', 'locked');
+        seconds--;
+      };
+      tick(); lockTimer = setInterval(tick, 1000);
+    }
+
+    async function doLogin() {
+      const pwd = passwordEl.value;
+      if (!pwd) { setLoginMsg('请输入密码。', 'error'); return; }
+      loginBtn.disabled = true; setLoginMsg('验证中…', '');
+      try {
+        const resp = await fetch('/auth', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pwd })
+        });
+        const data = await resp.json();
+        if (resp.ok && data.ok) {
+          ACCESS_TOKEN = data.token;
+          showOnly(appView);
+          loadTasks();
+          return;
+        }
+        loginBtn.disabled = false;
+        if (data.locked) startLockCountdown(data.remaining || 600);
+        else if (typeof data.attempts_left === 'number') setLoginMsg('密码错误，还可尝试 ' + data.attempts_left + ' 次。', 'error');
+        else setLoginMsg(data.error || '登录失败。', 'error');
+        passwordEl.value = '';
+      } catch (e) {
+        loginBtn.disabled = false; setLoginMsg('网络错误，请重试。', 'error');
+      }
+    }
+    loginBtn.addEventListener('click', doLogin);
+    passwordEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+    passwordEl.focus();
+
+    function forceRelogin() {
+      ACCESS_TOKEN = null;
+      showOnly(loginView);
+      loginBtn.disabled = false; passwordEl.disabled = false;
+      passwordEl.value = ''; passwordEl.focus();
+      setLoginMsg('会话已失效，请重新登录。', 'error');
+    }
+
+    // 新建任务 / 返回 视图切换
+    document.getElementById('newTaskBtn').addEventListener('click', () => {
+      resetForm();
+      progress.style.display = 'none';
+      result.style.display = 'none';
+      showOnly(createView);
+    });
+    document.getElementById('createBackBtn').addEventListener('click', () => {
+      showOnly(appView);
+      loadTasks();
+    });
+
+    // ===== 新建任务 =====
+    const drop = document.getElementById('drop');
+    const fileInput = document.getElementById('fileInput');
+    const filenameEl = document.getElementById('filename');
+    const convertBtn = document.getElementById('convertBtn');
+    const progress = document.getElementById('progress');
+    const bar = document.getElementById('bar');
+    const statusEl = document.getElementById('status');
+    const result = document.getElementById('result');
+    const bitrateEl = document.getElementById('bitrate');
+    const titleEl = document.getElementById('taskTitle');
+    const descEl = document.getElementById('taskDesc');
+    let selectedFile = null;
+
+    function setFile(file) {
+      selectedFile = file;
+      filenameEl.textContent = '已选择：' + file.name;
+      filenameEl.style.display = 'block';
+      convertBtn.disabled = false;
+      result.style.display = 'none';
+    }
+    drop.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => { if (e.target.files.length) setFile(e.target.files[0]); });
+    ['dragenter','dragover'].forEach(evt => drop.addEventListener(evt, (e) => { e.preventDefault(); drop.classList.add('dragover'); }));
+    ['dragleave','drop'].forEach(evt => drop.addEventListener(evt, (e) => { e.preventDefault(); drop.classList.remove('dragover'); }));
+    drop.addEventListener('drop', (e) => { if (e.dataTransfer.files.length) setFile(e.dataTransfer.files[0]); });
+
+    convertBtn.addEventListener('click', () => {
+      if (!selectedFile) return;
+      if (!ACCESS_TOKEN) { forceRelogin(); return; }
+      if (!titleEl.value.trim()) { alert('请先填写任务标题'); titleEl.focus(); return; }
+
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('bitrate', bitrateEl.value);
+      formData.append('title', titleEl.value.trim());
+      formData.append('description', descEl.value.trim());
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/convert');
+      xhr.setRequestHeader('X-Access-Token', ACCESS_TOKEN);
+      progress.style.display = 'block';
+      result.style.display = 'none';
+      convertBtn.disabled = true;
+      bar.style.width = '0%';
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 70);
+          bar.style.width = pct + '%';
+          statusEl.textContent = '上传中… ' + pct + '%';
+        }
+      };
+      xhr.upload.onload = () => { bar.style.width = '100%'; statusEl.textContent = '上传完成，任务已提交后台处理…'; };
+      xhr.onload = () => {
+        convertBtn.disabled = false;
+        if (xhr.status === 401) { forceRelogin(); return; }
+        let data = {};
+        try { data = JSON.parse(xhr.responseText); } catch (_) {}
+        if (xhr.status === 200 && data.ok) {
+          // 文件已上传到服务器，后台线程处理中：此时关闭网页也不影响任务
+          resetForm();
+          showOnly(appView);
+          loadTasks();
+        } else {
+          showError(data.error || '提交失败', data.detail);
+        }
+      };
+      xhr.onerror = () => { convertBtn.disabled = false; showError('网络错误，请重试'); };
+      xhr.send(formData);
+    });
+
+    function showError(msg, detail) {
+      progress.style.display = 'block';
+      result.className = 'result error';
+      result.style.display = 'block';
+      result.innerHTML = '<strong>❌ ' + msg + '</strong>' +
+        (detail ? '<div class="meta" style="white-space:pre-wrap;">' + detail + '</div>' : '');
+    }
+
+    function resetForm() {
+      selectedFile = null;
+      fileInput.value = '';
+      filenameEl.style.display = 'none';
+      titleEl.value = '';
+      descEl.value = '';
+      document.getElementById('speakerCount').value = '';
+      convertBtn.disabled = true;
+    }
+
+    // ===== 任务列表 =====
+    const taskList = document.getElementById('taskList');
+    const STATUS_LABEL = {
+      created: '已创建', queued: '排队中', converting: '转换中', converted: '待识别',
+      transcribing: '识别中', done: '已完成', failed: '失败'
+    };
+    const ACTIVE_STATUS = ['queued', 'converting', 'transcribing'];
+
+    async function retryTask(id) {
+      try {
+        const resp = await fetch('/tasks/' + encodeURIComponent(id) + '/retry', {
+          method: 'POST', headers: { 'X-Access-Token': ACCESS_TOKEN }
+        });
+        if (resp.status === 401) { forceRelogin(); return; }
+        const data = await resp.json();
+        if (resp.ok && data.ok) { loadTasks(); if (!detailView.classList.contains('hidden')) openDetail(id, true); }
+        else { alert(data.error || '重试失败'); }
+      } catch (e) { alert('重试失败：' + e.message); }
+    }
+
+    async function deleteTask(id, title) {
+      if (!confirm('确定删除任务「' + (title || '') + '」吗？\n该操作会同时删除原始视频与 MP3，且不可恢复。')) return;
+      try {
+        const resp = await fetch('/tasks/' + encodeURIComponent(id), {
+          method: 'DELETE', headers: { 'X-Access-Token': ACCESS_TOKEN }
+        });
+        if (resp.status === 401) { forceRelogin(); return; }
+        const data = await resp.json();
+        if (resp.ok && data.ok) { loadTasks(); }
+        else { alert(data.error || '删除失败'); }
+      } catch (e) { alert('删除失败：' + e.message); }
+    }
+
+    let listPollTimer = null;
+    async function loadTasks() {
+      try {
+        const resp = await fetch('/tasks', { headers: { 'X-Access-Token': ACCESS_TOKEN } });
+        if (resp.status === 401) { forceRelogin(); return; }
+        const data = await resp.json();
+        const tasks = data.tasks || [];
+        renderTasks(tasks);
+        // 有进行中的任务则自动轮询刷新状态
+        const active = tasks.some(t => ACTIVE_STATUS.includes(t.status));
+        if (active && !listPollTimer) {
+          listPollTimer = setInterval(loadTasks, 3000);
+        } else if (!active && listPollTimer) {
+          clearInterval(listPollTimer); listPollTimer = null;
+        }
+      } catch (e) {
+        taskList.innerHTML = '<div class="empty">加载任务失败：' + e.message + '</div>';
+      }
+    }
+
+    function renderTasks(tasks) {
+      if (!tasks.length) { taskList.innerHTML = '<div class="empty">暂无任务，创建你的第一个任务吧。</div>'; return; }
+      taskList.innerHTML = '';
+      tasks.forEach(t => {
+        const card = document.createElement('div');
+        card.className = 'task-card';
+        const st = t.status || 'created';
+        const spk = (t.speaker_count != null) ? ('· ' + t.speaker_count + ' 位说话人') : '';
+        const retryBtn = (st === 'failed') ? '<button class="btn-retry" title="重试">↻ 重试</button>' : '';
+        card.innerHTML =
+          '<div class="t-head">' +
+          '<div class="t-title">' + escapeHtml(t.title || '(无标题)') + '</div>' +
+          '<div style="display:flex;gap:8px;flex:0 0 auto;">' + retryBtn +
+          '<button class="btn-del" title="删除任务">🗑 删除</button></div></div>' +
+          (t.description ? '<div class="t-desc">' + escapeHtml(t.description) + '</div>' : '') +
+          '<div class="t-foot">' +
+          '<span class="badge ' + st + '">' + (STATUS_LABEL[st] || st) + '</span>' +
+          '<span>' + escapeHtml(t.created_at || '') + '</span>' +
+          '<span>' + spk + '</span></div>';
+        card.addEventListener('click', () => openDetail(t.id));
+        card.querySelector('.btn-del').addEventListener('click', (e) => {
+          e.stopPropagation();
+          deleteTask(t.id, t.title);
+        });
+        const rb = card.querySelector('.btn-retry');
+        if (rb) rb.addEventListener('click', (e) => { e.stopPropagation(); retryTask(t.id); });
+        taskList.appendChild(card);
+      });
+    }
+
+    // ===== 任务详情 =====
+    document.getElementById('backBtn').addEventListener('click', () => {
+      showOnly(appView);
+      loadTasks();
+    });
+
+    let detailPollTimer = null;
+    function stopDetailPoll() { if (detailPollTimer) { clearInterval(detailPollTimer); detailPollTimer = null; } }
+
+    async function openDetail(taskId, silent) {
+      try {
+        const resp = await fetch('/tasks/' + encodeURIComponent(taskId), { headers: { 'X-Access-Token': ACCESS_TOKEN } });
+        if (resp.status === 401) { forceRelogin(); return; }
+        const data = await resp.json();
+        if (!resp.ok || !data.ok) { if (!silent) alert(data.error || '加载详情失败'); return; }
+        renderDetail(data.task);
+        if (!silent) showOnly(detailView);
+        // 进行中的任务在详情页自动刷新
+        stopDetailPoll();
+        if (ACTIVE_STATUS.includes(data.task.status)) {
+          detailPollTimer = setInterval(() => openDetail(taskId, true), 3000);
+        }
+      } catch (e) { if (!silent) alert('加载详情失败：' + e.message); }
+    }
+
+    const SPEAKER_COLORS = ['#6366f1','#0ea5e9','#22c55e','#f59e0b','#ec4899','#a855f7','#14b8a6','#ef4444'];
+
+    let currentDetailTask = null;
+    document.getElementById('detailDelBtn').addEventListener('click', async () => {
+      if (!currentDetailTask) return;
+      const id = currentDetailTask.id, title = currentDetailTask.title;
+      if (!confirm('确定删除任务「' + (title || '') + '」吗？\n该操作会同时删除原始视频与 MP3，且不可恢复。')) return;
+      try {
+        const resp = await fetch('/tasks/' + encodeURIComponent(id), {
+          method: 'DELETE', headers: { 'X-Access-Token': ACCESS_TOKEN }
+        });
+        if (resp.status === 401) { forceRelogin(); return; }
+        const data = await resp.json();
+        if (resp.ok && data.ok) { showOnly(appView); loadTasks(); }
+        else { alert(data.error || '删除失败'); }
+      } catch (e) { alert('删除失败：' + e.message); }
+    });
+
+    document.getElementById('detailRetryBtn').addEventListener('click', () => {
+      if (currentDetailTask) retryTask(currentDetailTask.id);
+    });
+
+    function renderDetail(task) {
+      currentDetailTask = task;
+      const retryBtn = document.getElementById('detailRetryBtn');
+      retryBtn.classList.toggle('hidden', task.status !== 'failed');
+      document.getElementById('dTitle').textContent = task.title || '(无标题)';
+      document.getElementById('dDesc').textContent = task.description ? ('描述：' + task.description) : '（无描述）';
+      const st = task.status || 'created';
+      let metaHtml = '状态：' + (STATUS_LABEL[st] || st) + '　·　创建于 ' + (task.created_at || '');
+      if (task.mp3_size_mb != null) metaHtml += '　·　MP3 ' + task.mp3_size_mb + ' MB';
+      if (task.error) metaHtml += '<br>错误：' + escapeHtml(task.error);
+      document.getElementById('dMeta').innerHTML = metaHtml;
+
+      const dl = document.getElementById('dDownload');
+      const audio = document.getElementById('dAudio');
+      stopSegment();
+      if (task.download_url) {
+        const audioSrc = task.download_url + '?token=' + encodeURIComponent(ACCESS_TOKEN);
+        dl.innerHTML = '<a class="d-download" href="' + audioSrc + '">⬇ 下载 MP3</a>';
+        audio.src = audioSrc;
+      } else { dl.innerHTML = ''; audio.removeAttribute('src'); }
+
+      const dAsr = document.getElementById('dAsr');
+      const asr = task.asr;
+      if (!asr || !(asr.segments || []).length) {
+        let msg;
+        if (st === 'done') msg = '未识别到有效语音内容。';
+        else if (ACTIVE_STATUS.includes(st)) msg = '⏳ 任务处理中（' + (STATUS_LABEL[st] || st) + '）…即使关闭网页也会继续，可稍后回来查看。';
+        else if (st === 'failed') msg = '❌ 任务失败：' + (task.error || '未知错误') + '　可点上方/列表中的「重试」。';
+        else msg = '该任务暂无识别结果。';
+        dAsr.innerHTML = '<div class="empty">' + escapeHtml(msg) + '</div>';
+        return;
+      }
+      dAsr.innerHTML = '';
+      asr.segments.forEach(seg => {
+        const color = SPEAKER_COLORS[seg.speaker % SPEAKER_COLORS.length];
+        const beginSec = (seg.begin_ms != null) ? seg.begin_ms / 1000 : parseTs(seg.begin);
+        const endSec = (seg.end_ms != null) ? seg.end_ms / 1000 : parseTs(seg.end);
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+        bubble.innerHTML =
+          '<div class="spk-tag" style="background:' + color + '">说话人 ' + (seg.speaker + 1) + '</div>' +
+          '<div class="bubble-body"><div class="bubble-time">' + seg.begin + ' - ' + seg.end + '</div>' +
+          escapeHtml(seg.text) + '</div>' +
+          '<button class="btn-play">▶ 播放</button>';
+        const btn = bubble.querySelector('.btn-play');
+        btn.addEventListener('click', () => playSegment(beginSec, endSec, btn));
+        dAsr.appendChild(bubble);
+      });
+    }
+
+    // ===== 音频片段播放 =====
+    let segEndSec = null, segBtn = null;
+    function parseTs(s) {
+      const p = (s || '0:0').split(':').map(Number);
+      return p.length === 2 ? p[0] * 60 + p[1] : (p[0] || 0);
+    }
+    function stopSegment() {
+      const audio = document.getElementById('dAudio');
+      try { audio.pause(); } catch (_) {}
+      if (segBtn) { segBtn.classList.remove('playing'); segBtn.textContent = '▶ 播放'; }
+      segBtn = null; segEndSec = null;
+    }
+    function playSegment(beginSec, endSec, btn) {
+      const audio = document.getElementById('dAudio');
+      if (!audio.src) { alert('音频不可用'); return; }
+      // 若点击的是正在播放的片段，则停止
+      if (segBtn === btn && !audio.paused) { stopSegment(); return; }
+      stopSegment();
+      segBtn = btn; segEndSec = endSec;
+      btn.classList.add('playing'); btn.textContent = '⏸ 停止';
+      const start = () => {
+        try { audio.currentTime = beginSec; } catch (_) {}
+        audio.play().catch(() => { stopSegment(); });
+      };
+      if (audio.readyState >= 1) start();
+      else { audio.addEventListener('loadedmetadata', start, { once: true }); audio.load(); }
+    }
+    document.getElementById('dAudio').addEventListener('timeupdate', function () {
+      if (segEndSec != null && this.currentTime >= segEndSec) stopSegment();
+    });
+    document.getElementById('dAudio').addEventListener('ended', stopSegment);
+
+    function escapeHtml(s) {
+      return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+  </script>
+</body>
+</html>

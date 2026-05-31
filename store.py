@@ -8,9 +8,55 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TASKS_DIR = os.path.join(BASE_DIR, "tasks")
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 OUTPUT_DIR = os.path.join(BASE_DIR, "outputs")
+MODELS_FILE = os.path.join(BASE_DIR, "models.json")
 os.makedirs(TASKS_DIR, exist_ok=True)
 
+# 默认可选的 ASR 模型
+DEFAULT_MODELS = [
+    "fun-asr-2025-11-07",
+    "fun-asr",
+    "fun-asr-2025-08-25",
+    "fun-asr-mtl",
+    "fun-asr-mtl-2025-08-25",
+]
+
 _lock = threading.Lock()
+_models_lock = threading.Lock()
+
+
+def list_models() -> list[str]:
+    with _models_lock:
+        if not os.path.exists(MODELS_FILE):
+            return list(DEFAULT_MODELS)
+        try:
+            with open(MODELS_FILE, "r", encoding="utf-8") as fh:
+                models = json.load(fh)
+            if isinstance(models, list) and models:
+                return models
+        except (OSError, json.JSONDecodeError):
+            pass
+        return list(DEFAULT_MODELS)
+
+
+def add_model(name: str) -> list[str]:
+    name = (name or "").strip()
+    if not name:
+        return list_models()
+    with _models_lock:
+        models = []
+        if os.path.exists(MODELS_FILE):
+            try:
+                with open(MODELS_FILE, "r", encoding="utf-8") as fh:
+                    models = json.load(fh)
+            except (OSError, json.JSONDecodeError):
+                models = []
+        if not models:
+            models = list(DEFAULT_MODELS)
+        if name not in models:
+            models.append(name)
+        with open(MODELS_FILE, "w", encoding="utf-8") as fh:
+            json.dump(models, fh, ensure_ascii=False, indent=2)
+        return models
 
 
 def _path(task_id: str) -> str:
@@ -29,6 +75,7 @@ def create_task(task_id: str, title: str, description: str) -> dict:
         "mp3_size_mb": None,
         "bitrate": None,
         "speaker_count": None,
+        "model": None,
         "asr": None,                # {segments, speakers, speaker_count, audio_url}
         "error": None,
     }

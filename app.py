@@ -158,7 +158,7 @@ def auth():
     return jsonify({"error": "密码错误", "attempts_left": left}), 401
 
 
-def _process_task_bg(task_id, input_path, output_path, output_name, bitrate, speaker_count):
+def _process_task_bg(task_id, input_path, output_path, output_name, bitrate, speaker_count, model):
     """后台线程：完整执行 转换 -> 识别。客户端断开/关闭网页不影响本流程。"""
     # 1. 转换为 MP3
     store.update_task(task_id, status="converting", error=None)
@@ -182,7 +182,7 @@ def _process_task_bg(task_id, input_path, output_path, output_name, bitrate, spe
 
     # 2. 语音识别（含说话人分离）
     try:
-        result_asr = run_asr(output_path, speaker_count=speaker_count)
+        result_asr = run_asr(output_path, speaker_count=speaker_count, model=model)
     except ASRError as exc:
         store.update_task(task_id, status="failed", error=str(exc))
         return
@@ -193,10 +193,10 @@ def _process_task_bg(task_id, input_path, output_path, output_name, bitrate, spe
     store.update_task(task_id, status="done", asr=result_asr)
 
 
-def _start_task_thread(task_id, input_path, output_path, output_name, bitrate, speaker_count):
+def _start_task_thread(task_id, input_path, output_path, output_name, bitrate, speaker_count, model):
     t = threading.Thread(
         target=_process_task_bg,
-        args=(task_id, input_path, output_path, output_name, bitrate, speaker_count),
+        args=(task_id, input_path, output_path, output_name, bitrate, speaker_count, model),
         daemon=True,
     )
     t.start()
@@ -239,6 +239,8 @@ def convert():
     except (TypeError, ValueError):
         speaker_count = None
 
+    model = (request.form.get("model") or "").strip() or "fun-asr-2025-11-07"
+
     # 创建任务并保存上传文件（此步骤需在请求内完成，是客户端->服务器的传输）
     store.create_task(stamp, title, description)
     file.save(input_path)
@@ -248,10 +250,11 @@ def convert():
         status="queued",
         bitrate=bitrate,
         speaker_count=speaker_count,
+        model=model,
     )
 
     # 启动后台线程处理（转换 + 识别），立即返回；关闭网页不影响后台任务
-    _start_task_thread(stamp, input_path, output_path, output_name, bitrate, speaker_count)
+    _start_task_thread(stamp, input_path, output_path, output_name, bitrate, speaker_count, model)
 
     return jsonify({"ok": True, "task_id": stamp, "status": "queued"})
 
@@ -301,6 +304,23 @@ def asr():
     return jsonify({"ok": True, "task_id": task_id, **result})
 
 
+@app.route("/models", methods=["GET"])
+@require_token
+def models_list():
+    return jsonify({"ok": True, "models": store.list_models()})
+
+
+@app.route("/models", methods=["POST"])
+@require_token
+def models_add():
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "模型名称不能为空"}), 400
+    models = store.add_model(name)
+    return jsonify({"ok": True, "models": models})
+
+
 @app.route("/tasks", methods=["GET"])
 @require_token
 def tasks_list():
@@ -333,9 +353,10 @@ def task_retry(task_id):
     output_path = os.path.join(OUTPUT_DIR, output_name)
     bitrate = task.get("bitrate") or "192k"
     speaker_count = task.get("speaker_count")
+    model = task.get("model") or "fun-asr-2025-11-07"
 
     store.update_task(task["id"], status="queued", error=None)
-    _start_task_thread(task["id"], input_path, output_path, output_name, bitrate, speaker_count)
+    _start_task_thread(task["id"], input_path, output_path, output_name, bitrate, speaker_count, model)
     return jsonify({"ok": True, "status": "queued"})
 
 

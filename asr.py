@@ -32,15 +32,18 @@ def _api_key() -> str:
     return key
 
 
-def upload_to_dashscope(file_path: str, api_key: str | None = None) -> str:
-    """上传文件到百炼临时存储，返回 oss:// 临时 URL（48 小时有效）。"""
+def upload_to_dashscope(file_path: str, api_key: str | None = None, model: str = MODEL) -> str:
+    """上传文件到百炼临时存储，返回 oss:// 临时 URL（48 小时有效）。
+
+    注意：上传凭证与模型绑定，必须与后续转写调用使用的模型一致。
+    """
     api_key = api_key or _api_key()
 
     # 步骤1：获取上传凭证
     resp = requests.get(
         UPLOAD_URL,
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-        params={"action": "getPolicy", "model": MODEL},
+        params={"action": "getPolicy", "model": model},
         timeout=30,
     )
     if resp.status_code != 200:
@@ -70,7 +73,8 @@ def upload_to_dashscope(file_path: str, api_key: str | None = None) -> str:
 
 
 def submit_transcription(
-    audio_url: str, api_key: str | None = None, speaker_count: int | None = None
+    audio_url: str, api_key: str | None = None, speaker_count: int | None = None,
+    model: str = MODEL,
 ) -> str:
     """提交异步转写任务，开启说话人分离，返回 task_id。"""
     api_key = api_key or _api_key()
@@ -89,7 +93,7 @@ def submit_transcription(
         headers["X-DashScope-OssResourceResolve"] = "enable"
 
     body = {
-        "model": MODEL,
+        "model": model,
         "input": {"file_urls": [audio_url]},
         "parameters": parameters,
     }
@@ -193,11 +197,11 @@ def group_by_speaker(transcript: dict) -> dict:
     }
 
 
-def run_asr(file_path: str, speaker_count: int | None = None) -> dict:
+def run_asr(file_path: str, speaker_count: int | None = None, model: str = MODEL) -> dict:
     """完整执行：上传 -> 提交 -> 轮询 -> 解析，返回按说话人整理的结果。"""
     api_key = _api_key()
-    audio_url = upload_to_dashscope(file_path, api_key)
-    task_id = submit_transcription(audio_url, api_key, speaker_count)
+    audio_url = upload_to_dashscope(file_path, api_key, model=model)
+    task_id = submit_transcription(audio_url, api_key, speaker_count, model=model)
     out = poll_task(task_id, api_key)
 
     if out.get("task_status") != "SUCCEEDED":
@@ -215,4 +219,5 @@ def run_asr(file_path: str, speaker_count: int | None = None) -> dict:
     grouped = group_by_speaker(transcript)
     grouped["audio_url"] = audio_url
     grouped["task_id"] = task_id
+    grouped["model"] = model
     return grouped

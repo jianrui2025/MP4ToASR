@@ -240,6 +240,12 @@
     <input type="file" id="fileInput" accept="video/*,.mp4,.mov,.mkv,.avi,.webm,.m4v" hidden />
 
     <div class="row">
+      <label for="modelSelect">ASR 模型</label>
+      <select id="modelSelect" style="min-width:200px;"></select>
+      <button type="button" id="addModelBtn" class="btn-ghost" style="margin-top:0;">+ 新增模型</button>
+    </div>
+
+    <div class="row">
       <label for="bitrate">音质</label>
       <select id="bitrate">
         <option value="128k">128 kbps</option>
@@ -333,6 +339,7 @@
           ACCESS_TOKEN = data.token;
           showOnly(appView);
           loadTasks();
+          loadModels();
           return;
         }
         loginBtn.disabled = false;
@@ -356,11 +363,45 @@
       setLoginMsg('会话已失效，请重新登录。', 'error');
     }
 
+    // ===== ASR 模型下拉 =====
+    const modelSelect = document.getElementById('modelSelect');
+    async function loadModels(selectName) {
+      try {
+        const resp = await fetch('/models', { headers: { 'X-Access-Token': ACCESS_TOKEN } });
+        if (resp.status === 401) { forceRelogin(); return; }
+        const data = await resp.json();
+        const models = data.models || [];
+        modelSelect.innerHTML = '';
+        models.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m; opt.textContent = m;
+          modelSelect.appendChild(opt);
+        });
+        if (selectName && models.includes(selectName)) modelSelect.value = selectName;
+      } catch (e) { /* 忽略，保留空下拉 */ }
+    }
+    document.getElementById('addModelBtn').addEventListener('click', async () => {
+      const name = (prompt('请输入要新增的 ASR 模型名称：') || '').trim();
+      if (!name) return;
+      try {
+        const resp = await fetch('/models', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Access-Token': ACCESS_TOKEN },
+          body: JSON.stringify({ name: name })
+        });
+        if (resp.status === 401) { forceRelogin(); return; }
+        const data = await resp.json();
+        if (resp.ok && data.ok) { await loadModels(name); }
+        else { alert(data.error || '新增失败'); }
+      } catch (e) { alert('新增失败：' + e.message); }
+    });
+
     // 新建任务 / 返回 视图切换
     document.getElementById('newTaskBtn').addEventListener('click', () => {
       resetForm();
       progress.style.display = 'none';
       result.style.display = 'none';
+      if (!modelSelect.options.length) loadModels();
       showOnly(createView);
     });
     document.getElementById('createBackBtn').addEventListener('click', () => {
@@ -405,6 +446,9 @@
       formData.append('bitrate', bitrateEl.value);
       formData.append('title', titleEl.value.trim());
       formData.append('description', descEl.value.trim());
+      formData.append('model', modelSelect.value || '');
+      const scEl0 = document.getElementById('speakerCount');
+      if (scEl0 && scEl0.value) formData.append('speaker_count', scEl0.value);
 
       const xhr = new XMLHttpRequest();
       xhr.open('POST', '/convert');
@@ -596,6 +640,7 @@
       document.getElementById('dDesc').textContent = task.description ? ('描述：' + task.description) : '（无描述）';
       const st = task.status || 'created';
       let metaHtml = '状态：' + (STATUS_LABEL[st] || st) + '　·　创建于 ' + (task.created_at || '');
+      if (task.model) metaHtml += '　·　模型 ' + escapeHtml(task.model);
       if (task.mp3_size_mb != null) metaHtml += '　·　MP3 ' + task.mp3_size_mb + ' MB';
       if (task.error) metaHtml += '<br>错误：' + escapeHtml(task.error);
       document.getElementById('dMeta').innerHTML = metaHtml;

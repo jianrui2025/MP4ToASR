@@ -32,7 +32,13 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 # ffmpeg 二进制由 imageio-ffmpeg 提供，无需系统级安装
 FFMPEG_BIN = imageio_ffmpeg.get_ffmpeg_exe()
 
-ALLOWED_EXTENSIONS = {".mp4", ".mov", ".m4v", ".mkv", ".avi", ".webm"}
+VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v", ".mkv", ".avi", ".webm"}
+AUDIO_EXTENSIONS = {
+    ".mp3", ".wav", ".m4a", ".flac", ".aac",
+    ".ogg", ".oga", ".opus", ".wma", ".amr",
+    ".aiff", ".aif", ".caf", ".mka", ".ac3",
+}
+ALLOWED_EXTENSIONS = VIDEO_EXTENSIONS | AUDIO_EXTENSIONS
 MAX_CONTENT_LENGTH = 2 * 1024 * 1024 * 1024  # 2 GB
 
 # ===== 登录控制配置 =====
@@ -160,25 +166,26 @@ def auth():
 
 def _process_task_bg(task_id, input_path, output_path, output_name, bitrate, speaker_count, model):
     """后台线程：完整执行 转换 -> 识别。客户端断开/关闭网页不影响本流程。"""
-    # 1. 转换为 MP3
-    store.update_task(task_id, status="converting", error=None)
-    cmd = [
-        FFMPEG_BIN, "-y", "-i", input_path,
-        "-vn", "-acodec", "libmp3lame", "-ab", bitrate, output_path,
-    ]
-    try:
-        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
-    except Exception as exc:  # noqa: BLE001
-        store.update_task(task_id, status="failed", error=f"转换进程启动失败: {exc}")
-        return
+    # 1. 转换为 MP3（单声道 -ac 1，百炼说话人分离仅支持单声道音频；若重试时 MP3 已存在且非空则直接复用）
+    if not (os.path.exists(output_path) and os.path.getsize(output_path) > 0):
+        store.update_task(task_id, status="converting", error=None)
+        cmd = [
+            FFMPEG_BIN, "-y", "-i", input_path,
+            "-vn", "-ac", "1", "-acodec", "libmp3lame", "-ab", bitrate, output_path,
+        ]
+        try:
+            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+        except Exception as exc:  # noqa: BLE001
+            store.update_task(task_id, status="failed", error=f"转换进程启动失败: {exc}")
+            return
 
-    if result.returncode != 0 or not os.path.exists(output_path):
-        stderr_tail = result.stderr.decode("utf-8", errors="ignore")[-500:]
-        store.update_task(task_id, status="failed", error="转换失败: " + stderr_tail)
-        return
+        if result.returncode != 0 or not os.path.exists(output_path):
+            stderr_tail = result.stderr.decode("utf-8", errors="ignore")[-500:]
+            store.update_task(task_id, status="failed", error="转换失败: " + stderr_tail)
+            return
 
     size_mb = round(os.path.getsize(output_path) / (1024 * 1024), 2)
-    store.update_task(task_id, status="transcribing", mp3=output_name, mp3_size_mb=size_mb)
+    store.update_task(task_id, status="transcribing", mp3=output_name, mp3_size_mb=size_mb, error=None)
 
     # 2. 语音识别（含说话人分离）
     try:
@@ -213,17 +220,23 @@ def convert():
         return jsonify({"error": "文件名为空"}), 400
 
     if not _is_allowed(file.filename):
-        return jsonify({"error": "不支持的文件格式，请上传 MP4 等视频文件"}), 400
+        return jsonify({"error": "不支持的文件格式，请上传支持的视频或音频文件"}), 400
 
     title = (request.form.get("title") or "").strip()
     description = (request.form.get("description") or "").strip()
+    folder = (request.form.get("folder") or "").strip()
+    if not folder:
+        return jsonify({"error": "请选择所属任务目录文件夹"}), 400
     if not title:
         return jsonify({"error": "请填写任务标题"}), 400
 
-    # 生成唯一标识，保留中间文件（上传的视频）于项目的 uploads 目录中
+    # 生成唯一标识，保留中间文件（上传的原始音视频）于项目的 uploads 目录中
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:8]
-    safe_name = secure_filename(file.filename) or "input.mp4"
-    base_name = os.path.splitext(safe_name)[0]
+    orig_base, orig_ext = os.path.splitext(file.filename or "")
+    orig_ext = orig_ext.lower()
+    safe_base = secure_filename(orig_base).strip("._-") or "input"
+    safe_name = f"{safe_base}{orig_ext}"
+    base_name = safe_base
 
     input_path = os.path.join(UPLOAD_DIR, f"{stamp}__{safe_name}")
     output_name = f"{stamp}__{base_name}.mp3"
@@ -242,8 +255,18 @@ def convert():
     model = (request.form.get("model") or "").strip() or "fun-asr-2025-11-07"
 
     # 创建任务并保存上传文件（此步骤需在请求内完成，是客户端->服务器的传输）
-    store.create_task(stamp, title, description)
     file.save(input_path)
+    if not os.path.exists(input_path) or os.path.getsize(input_path) == 0:
+        try:
+            if os.path.exists(input_path):
+                os.remove(input_path)
+        except OSError:
+            pass
+        return jsonify({
+            "error": "上传的文件为空（0 字节）。请检查本地原文件是否损坏，或若是网盘/iCloud 云端未下载的占位文件，请先下载到本地后再上传。"
+        }), 400
+
+    store.create_task(stamp, title, description, folder=folder)
     store.update_task(
         stamp,
         source=os.path.basename(input_path),
@@ -256,7 +279,7 @@ def convert():
     # 启动后台线程处理（转换 + 识别），立即返回；关闭网页不影响后台任务
     _start_task_thread(stamp, input_path, output_path, output_name, bitrate, speaker_count, model)
 
-    return jsonify({"ok": True, "task_id": stamp, "status": "queued"})
+    return jsonify({"ok": True, "task_id": stamp, "folder": folder, "status": "queued"})
 
 
 @app.route("/download/<path:filename>")
@@ -290,9 +313,11 @@ def asr():
     except (TypeError, ValueError):
         speaker_count = None
 
+    model = (data.get("model") or task.get("model") or "").strip() or "fun-asr-2025-11-07"
+
     store.update_task(task_id, status="transcribing", error=None)
     try:
-        result = run_asr(mp3_path, speaker_count=speaker_count)
+        result = run_asr(mp3_path, speaker_count=speaker_count, model=model)
     except ASRError as exc:
         store.update_task(task_id, status="failed", error=str(exc))
         return jsonify({"error": str(exc)}), 502
@@ -321,10 +346,56 @@ def models_add():
     return jsonify({"ok": True, "models": models})
 
 
+@app.route("/folders", methods=["GET"])
+@require_token
+def folders_list():
+    return jsonify({"ok": True, "folders": store.list_folders()})
+
+
+@app.route("/folders", methods=["POST"])
+@require_token
+def folders_add():
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "目录文件夹名称不能为空"}), 400
+    folders = store.add_folder(name)
+    return jsonify({"ok": True, "folders": folders, "folder": name})
+
+
+@app.route("/folders", methods=["DELETE"])
+@require_token
+def folders_delete():
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or request.args.get("name") or "").strip()
+    ok, err = store.delete_folder(name)
+    if not ok:
+        return jsonify({"error": err}), 400
+    return jsonify({"ok": True, "folders": store.list_folders()})
+
+
+@app.route("/folders/order", methods=["PUT", "POST"])
+@require_token
+def folders_reorder():
+    data = request.get_json(silent=True) or {}
+    order = data.get("folders")
+    if not isinstance(order, list):
+        return jsonify({"error": "参数 folders 需为列表"}), 400
+    folders = store.reorder_folders(order)
+    return jsonify({"ok": True, "folders": folders})
+
+
 @app.route("/tasks", methods=["GET"])
 @require_token
 def tasks_list():
-    return jsonify({"ok": True, "tasks": store.list_tasks()})
+    folder = (request.args.get("folder") or "").strip() or None
+    return jsonify(
+        {
+            "ok": True,
+            "tasks": store.list_tasks(folder=folder),
+            "folders": store.list_folders(),
+        }
+    )
 
 
 @app.route("/tasks/<task_id>", methods=["GET"])
@@ -346,7 +417,7 @@ def task_retry(task_id):
         return jsonify({"error": "任务不存在"}), 404
     source = task.get("source")
     if not source or not os.path.exists(os.path.join(UPLOAD_DIR, source)):
-        return jsonify({"error": "原始视频已不存在，无法重试"}), 400
+        return jsonify({"error": "原始文件已不存在，无法重试"}), 400
 
     input_path = os.path.join(UPLOAD_DIR, source)
     output_name = os.path.splitext(source)[0] + ".mp3"
@@ -358,6 +429,19 @@ def task_retry(task_id):
     store.update_task(task["id"], status="queued", error=None)
     _start_task_thread(task["id"], input_path, output_path, output_name, bitrate, speaker_count, model)
     return jsonify({"ok": True, "status": "queued"})
+
+
+@app.route("/tasks/<task_id>/move", methods=["POST"])
+@require_token
+def task_move(task_id):
+    data = request.get_json(silent=True) or {}
+    folder = (data.get("folder") or "").strip()
+    if not folder:
+        return jsonify({"error": "目标目录文件夹不能为空"}), 400
+    task = store.move_task_to_folder(secure_filename(task_id), folder)
+    if task is None:
+        return jsonify({"error": "任务不存在"}), 404
+    return jsonify({"ok": True, "task": task, "folders": store.list_folders()})
 
 
 @app.route("/tasks/<task_id>", methods=["DELETE"])
@@ -376,7 +460,7 @@ def too_large(_):
 
 if __name__ == "__main__":
     host = os.environ.get("HOST", "0.0.0.0")
-    port = int(os.environ.get("PORT", "5000"))
+    port = int(os.environ.get("PORT", "5001"))
     print(f"ffmpeg 二进制: {FFMPEG_BIN}")
     print(f"访问密码(APP_PASSWORD): {APP_PASSWORD}")
     app.run(host=host, port=port, debug=True)

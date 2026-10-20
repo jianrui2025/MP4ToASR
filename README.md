@@ -7,7 +7,7 @@
 ## 功能特性
 
 - 密码登录控制：仅需密码；连续 3 次错误锁定 10 分钟；每次刷新页面需重新验证
-- 拖拽 / 点击上传视频文件（MP4 / MOV / MKV / AVI / WEBM / M4V）
+- 拖拽 / 点击上传视频或音频文件（视频：MP4 / MOV / MKV / AVI / WEBM / M4V；音频：MP3 / WAV / M4A / FLAC / AAC / OGG / OPUS / WMA / AMR / AIFF / CAF / MKA / AC3）
 - 可选输出音质：128 / 192 / 256 / 320 kbps
 - 上传进度显示与转换结果下载
 - 使用 `imageio-ffmpeg` 自带的 ffmpeg 二进制，无需系统级安装 ffmpeg
@@ -29,6 +29,9 @@
 
 ```bash
 export DASHSCOPE_API_KEY='你的百炼API Key'
+export DASHSCOPE_BASE_URL='xxxx'
+# 可选：自定义百炼 Base URL（默认 https://dashscope.aliyuncs.com，末尾带不带 /api/v1 均可）
+# export DASHSCOPE_BASE_URL='https://dashscope.aliyuncs.com'
 ```
 
 ## 目录结构
@@ -51,13 +54,14 @@ pip install -r requirements.txt
 
 # 2. 配置百炼 API Key（用于 ASR）
 export DASHSCOPE_API_KEY='你的百炼API Key'
+export DASHSCOPE_BASE_URL='xxxx'
 
 # 3. 启动服务（生产服务器 waitress）
 python serve.py
 #   或开发模式： python app.py
 
 # 4. 浏览器打开
-#    http://localhost:5000   默认密码 123456（可用环境变量 APP_PASSWORD 修改）
+#    http://localhost:5001   默认密码 123456（可用环境变量 APP_PASSWORD 修改）
 ```
 
 ## 说明

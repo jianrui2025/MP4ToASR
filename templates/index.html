@@ -6,151 +6,333 @@
   <title>MP4 转 MP3 + 语音识别</title>
   <style>
     :root {
-      --bg: #0f172a;
-      --card: #1e293b;
-      --accent: #6366f1;
-      --accent-2: #8b5cf6;
-      --text: #e2e8f0;
-      --muted: #94a3b8;
-      --ok: #22c55e;
+      --bg: #f3f6fa;
+      --card: #ffffff;
+      --surface: #f8fafc;
+      --border: #e2e8f0;
+      --border-strong: #cbd5e1;
+      --accent: #2563eb;
+      --accent-2: #0284c7;
+      --text: #0f172a;
+      --text-secondary: #334155;
+      --muted: #64748b;
+      --ok: #10b981;
       --err: #ef4444;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-      background: radial-gradient(1200px 600px at 50% -10%, #1e293b, var(--bg));
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background:
+        radial-gradient(900px 480px at 15% -5%, rgba(37, 99, 235, 0.07), transparent 60%),
+        radial-gradient(800px 420px at 85% 0%, rgba(14, 165, 233, 0.06), transparent 60%),
+        linear-gradient(180deg, #f8fafc 0%, var(--bg) 100%);
       color: var(--text);
       min-height: 100vh;
       display: flex;
       align-items: flex-start;
       justify-content: center;
-      padding: 32px 16px;
+      padding: 36px 16px;
+      -webkit-font-smoothing: antialiased;
     }
     .card {
       width: 68vw;
-      max-width: 1400px;
+      max-width: 1280px;
       background: var(--card);
-      border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 20px;
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      border-radius: 22px;
       padding: 36px 44px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      box-shadow:
+        0 16px 40px -8px rgba(15, 23, 42, 0.06),
+        0 4px 12px -2px rgba(15, 23, 42, 0.03);
     }
     /* 登录框保持紧凑 */
-    #loginView { width: 420px; max-width: 92vw; }
+    #loginView { width: 420px; max-width: 92vw; margin-top: 8vh; }
     @media (max-width: 900px) {
       .card { width: 94vw; padding: 28px 22px; }
     }
     h1 {
       font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
       margin-bottom: 6px;
-      background: linear-gradient(90deg, var(--accent), var(--accent-2));
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
+      color: #1e293b;
     }
-    h2 { font-size: 16px; margin: 26px 0 14px; color: var(--text); }
-    .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
-    label { font-size: 13px; color: var(--muted); }
-    input[type="text"], textarea, select, input[type="number"], input[type="password"] {
-      background: #0f172a;
-      color: var(--text);
-      border: 1px solid rgba(148,163,184,0.3);
-      border-radius: 8px;
-      padding: 10px 12px;
-      font-size: 14px;
-      font-family: inherit;
-    }
-    .field { margin-bottom: 14px; }
-    .field label { display: block; margin-bottom: 6px; }
-    .field input[type="text"], .field textarea { width: 100%; }
-    textarea { min-height: 70px; resize: vertical; }
-    input[type="password"] { width: 100%; padding: 14px; font-size: 16px; letter-spacing: 2px; }
-    .drop {
-      border: 2px dashed rgba(148,163,184,0.4);
-      border-radius: 16px;
-      padding: 32px 20px;
-      text-align: center;
-      cursor: pointer;
-      transition: all .2s;
-      background: rgba(15,23,42,0.4);
-    }
-    .drop:hover, .drop.dragover { border-color: var(--accent); background: rgba(99,102,241,0.08); }
-    .drop .icon { font-size: 40px; margin-bottom: 10px; }
-    .drop .hint { color: var(--muted); font-size: 13px; margin-top: 6px; }
-    .filename { margin-top: 14px; font-size: 14px; word-break: break-all; display: none; }
-    .row { display: flex; align-items: center; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
-    button {
-      padding: 14px;
-      border: none;
-      border-radius: 12px;
+    h2 {
       font-size: 15px;
       font-weight: 600;
-      color: #fff;
-      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      margin: 26px 0 12px;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 22px; line-height: 1.5; }
+    label { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+    input[type="text"], textarea, select, input[type="number"], input[type="password"] {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border-strong);
+      border-radius: 10px;
+      padding: 10px 13px;
+      font-size: 14px;
+      font-family: inherit;
+      transition: all .18s ease;
+      outline: none;
+    }
+    input[type="text"]:focus, textarea:focus, select:focus, input[type="number"]:focus, input[type="password"]:focus {
+      background: #ffffff;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+    input::placeholder, textarea::placeholder { color: #94a3b8; }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; margin-bottom: 6px; }
+    .field input[type="text"], .field textarea { width: 100%; }
+    textarea { min-height: 74px; resize: vertical; }
+    input[type="password"] { width: 100%; padding: 13px 14px; font-size: 16px; letter-spacing: 2px; }
+    .drop {
+      border: 2px dashed #cbd5e1;
+      border-radius: 16px;
+      padding: 34px 20px;
+      text-align: center;
       cursor: pointer;
-      transition: opacity .2s;
+      transition: all .2s ease;
+      background: #f8fafc;
+      color: var(--text-secondary);
+    }
+    .drop:hover, .drop.dragover {
+      border-color: var(--accent);
+      background: #eff6ff;
+      transform: translateY(-1px);
+    }
+    .drop .icon { font-size: 40px; margin-bottom: 10px; }
+    .drop .hint { color: var(--muted); font-size: 13px; margin-top: 6px; }
+    .filename {
+      margin-top: 14px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+      background: #eff6ff;
+      display: none;
+      padding: 6px 12px;
+      border-radius: 8px;
+      word-break: break-all;
+    }
+    .row { display: flex; align-items: center; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+    button {
+      padding: 13px 18px;
+      border: none;
+      border-radius: 11px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #ffffff;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.20);
+      cursor: pointer;
+      transition: all .18s ease;
+    }
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(37, 99, 235, 0.28);
     }
     .btn-block { width: 100%; margin-top: 22px; }
-    button:disabled { opacity: .5; cursor: not-allowed; }
-    .btn-ghost { background: transparent; border: 1px solid rgba(148,163,184,0.4); color: var(--muted); padding: 8px 14px; font-size: 13px; }
+    button:disabled { opacity: .48; cursor: not-allowed; box-shadow: none; }
+    .btn-ghost {
+      background: #ffffff;
+      border: 1px solid var(--border-strong);
+      color: var(--text-secondary);
+      padding: 8px 14px;
+      font-size: 13px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+    .btn-ghost:hover:not(:disabled) {
+      background: var(--surface);
+      border-color: #94a3b8;
+      color: var(--text);
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+    }
     .progress { display: none; margin-top: 22px; }
-    .bar-bg { height: 8px; background: rgba(148,163,184,0.2); border-radius: 99px; overflow: hidden; }
+    .bar-bg { height: 8px; background: #e2e8f0; border-radius: 99px; overflow: hidden; }
     .bar { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .2s; }
     .status { font-size: 13px; color: var(--muted); margin-top: 10px; }
-    .result { display: none; margin-top: 18px; padding: 16px; border-radius: 12px; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); }
-    .result.error { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); }
-    .meta { font-size: 13px; color: var(--muted); margin-top: 6px; }
+    .result { display: none; margin-top: 18px; padding: 16px; border-radius: 12px; background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; }
+    .result.error { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+    .meta { font-size: 13px; color: var(--muted); margin-top: 6px; line-height: 1.6; }
     .login-msg { font-size: 13px; margin-top: 14px; min-height: 18px; }
     .login-msg.error { color: var(--err); }
-    .login-msg.locked { color: #f59e0b; }
+    .login-msg.locked { color: #d97706; }
     .hidden { display: none !important; }
 
     /* 任务列表 */
     .task-card {
-      border: 1px solid rgba(148,163,184,0.2);
-      border-radius: 12px;
-      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 18px;
       margin-bottom: 12px;
       cursor: pointer;
-      transition: all .15s;
-      background: rgba(15,23,42,0.5);
+      transition: all .18s ease;
+      background: #ffffff;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
     }
-    .task-card:hover { border-color: var(--accent); background: rgba(99,102,241,0.08); }
+    .task-card:hover {
+      border-color: #93c5fd;
+      background: #f8fbff;
+      box-shadow: 0 6px 18px -4px rgba(37, 99, 235, 0.09);
+      transform: translateY(-1px);
+    }
     .task-card .t-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-    .task-card .t-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; flex: 1; }
+    .task-card .t-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 4px; flex: 1; }
     .btn-del {
       flex: 0 0 auto;
       padding: 6px 12px;
       font-size: 12px;
       font-weight: 600;
-      background: transparent;
-      border: 1px solid rgba(239,68,68,0.5);
-      color: #f87171;
+      background: #fff1f2;
+      border: 1px solid #fecdd3;
+      color: #e11d48;
       border-radius: 8px;
+      box-shadow: none;
       cursor: pointer;
     }
-    .btn-del:hover { background: rgba(239,68,68,0.12); }
+    .btn-del:hover:not(:disabled) { background: #ffe4e6; border-color: #fda4af; box-shadow: none; }
     .btn-retry {
       flex: 0 0 auto;
       padding: 6px 12px;
       font-size: 12px;
       font-weight: 600;
-      background: transparent;
-      border: 1px solid rgba(99,102,241,0.6);
-      color: #a5b4fc;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #2563eb;
       border-radius: 8px;
+      box-shadow: none;
       cursor: pointer;
     }
-    .btn-retry:hover { background: rgba(99,102,241,0.15); }
-    .task-card .t-desc { font-size: 13px; color: var(--muted); margin-bottom: 8px; white-space: pre-wrap; word-break: break-word; }
-    .task-card .t-foot { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
-    .badge { padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; color: #fff; }
-    .badge.done { background: var(--ok); color: #04210f; }
-    .badge.failed { background: var(--err); }
-    .badge.transcribing, .badge.converting { background: #f59e0b; }
-    .badge.queued { background: #0ea5e9; }
-    .badge.converted, .badge.created { background: #64748b; }
-    .empty { color: var(--muted); font-size: 14px; padding: 16px 0; }
+    .btn-retry:hover:not(:disabled) { background: #dbeafe; border-color: #93c5fd; box-shadow: none; }
+    .task-card .t-desc { font-size: 13px; color: var(--muted); margin-bottom: 10px; white-space: pre-wrap; word-break: break-word; line-height: 1.5; }
+    .task-card .t-foot { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+    .badge { padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+    .badge.done { background: #d1fae5; color: #065f46; }
+    .badge.failed { background: #fee2e2; color: #991b1b; }
+    .badge.transcribing, .badge.converting { background: #fef3c7; color: #92400e; }
+    .badge.queued { background: #e0f2fe; color: #075985; }
+    .badge.converted, .badge.created { background: #f1f5f9; color: #475569; }
+    .empty {
+      color: var(--muted);
+      font-size: 14px;
+      padding: 28px 16px;
+      text-align: center;
+      background: var(--surface);
+      border: 1px dashed var(--border-strong);
+      border-radius: 14px;
+    }
+
+    /* 目录文件夹导航栏 */
+    .folder-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 8px 0 20px;
+    }
+    .folder-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 14px;
+      border-radius: 11px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all .16s ease;
+      user-select: none;
+    }
+    .folder-chip:hover {
+      border-color: #93c5fd;
+      background: #eff6ff;
+      color: var(--accent);
+    }
+    .folder-chip.active {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      border-color: transparent;
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.20);
+    }
+    .folder-chip[draggable="true"] {
+      cursor: grab;
+    }
+    .folder-chip.dragging {
+      opacity: 0.45;
+      transform: scale(0.97);
+    }
+    .folder-chip.drag-over-folder {
+      border-color: var(--accent-2);
+      background: #f0f9ff;
+      color: var(--accent-2);
+      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.18);
+      transform: translateY(-2px);
+    }
+    .folder-chip.drag-over-task {
+      border-color: var(--ok);
+      background: #ecfdf5;
+      color: #047857;
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.22);
+      transform: scale(1.04);
+    }
+    .task-card[draggable="true"] {
+      cursor: grab;
+    }
+    .task-card.dragging {
+      opacity: 0.45;
+      border-style: dashed;
+    }
+    .drag-hint {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 400;
+      margin-left: 8px;
+    }
+    .folder-chip .f-count {
+      font-size: 11px;
+      padding: 1px 7px;
+      border-radius: 99px;
+      background: rgba(15, 23, 42, 0.07);
+      color: inherit;
+    }
+    .folder-chip.active .f-count {
+      background: rgba(255, 255, 255, 0.24);
+      color: #ffffff;
+    }
+    .folder-chip .f-del {
+      margin-left: 2px;
+      font-size: 12px;
+      opacity: 0.6;
+      padding: 0 4px;
+      border-radius: 4px;
+    }
+    .folder-chip .f-del:hover {
+      opacity: 1;
+      background: rgba(239, 68, 68, 0.18);
+      color: #ef4444;
+    }
+    .folder-chip.active .f-del:hover {
+      background: rgba(255, 255, 255, 0.25);
+      color: #ffffff;
+    }
+    .folder-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 9px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      background: #eff6ff;
+      border: 1px solid #dbeafe;
+      color: #1d4ed8;
+    }
 
     /* 详情顶部按钮栏：吸顶常驻 */
     .detail-bar {
@@ -161,37 +343,52 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      background: var(--card);
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(10px);
       margin: -36px -44px 0;
       padding: 16px 44px;
-      border-bottom: 1px solid rgba(148,163,184,0.15);
-      border-radius: 20px 20px 0 0;
+      border-bottom: 1px solid var(--border);
+      border-radius: 22px 22px 0 0;
     }
     @media (max-width: 900px) {
       .detail-bar { margin: -28px -22px 0; padding: 14px 22px; }
     }
 
     /* 详情说话人气泡 */
-    .bubble { display: flex; gap: 10px; margin-bottom: 14px; align-items: flex-start; }
-    .spk-tag { flex: 0 0 auto; min-width: 64px; padding: 6px 8px; border-radius: 8px; font-size: 12px; font-weight: 600; text-align: center; color: #fff; }
-    .bubble-body { background: rgba(15,23,42,0.6); border: 1px solid rgba(148,163,184,0.2); border-radius: 10px; padding: 10px 12px; font-size: 14px; line-height: 1.6; flex: 1; }
-    .bubble-time { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+    .bubble { display: flex; gap: 12px; margin-bottom: 14px; align-items: flex-start; }
+    .spk-tag { flex: 0 0 auto; min-width: 68px; padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; text-align: center; color: #fff; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08); }
+    .bubble-body { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 11px 14px; font-size: 14px; color: var(--text); line-height: 1.65; flex: 1; }
+    .bubble-time { font-size: 11px; color: var(--muted); margin-bottom: 4px; font-weight: 500; }
     .btn-play {
       flex: 0 0 auto;
       align-self: center;
-      padding: 8px 12px;
+      padding: 8px 13px;
       font-size: 13px;
       font-weight: 600;
-      background: rgba(99,102,241,0.15);
-      border: 1px solid rgba(99,102,241,0.5);
-      color: #a5b4fc;
-      border-radius: 8px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: var(--accent);
+      border-radius: 9px;
+      box-shadow: none;
       cursor: pointer;
       white-space: nowrap;
     }
-    .btn-play:hover { background: rgba(99,102,241,0.3); }
-    .btn-play.playing { background: var(--accent); color: #fff; }
-    .d-download { display: inline-block; margin-top: 6px; padding: 10px 18px; background: var(--ok); color: #04210f; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 14px; }
+    .btn-play:hover:not(:disabled) { background: #dbeafe; border-color: #93c5fd; box-shadow: none; }
+    .btn-play.playing { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .d-download {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 10px 18px;
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      color: #047857;
+      text-decoration: none;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 13px;
+      transition: all .15s ease;
+    }
+    .d-download:hover { background: #d1fae5; border-color: #6ee7b7; }
   </style>
 </head>
 <body>
@@ -208,11 +405,17 @@
   <div class="card hidden" id="appView">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
       <h1>MP4 转 MP3 + 语音识别</h1>
-      <button id="newTaskBtn" style="flex:0 0 auto;padding:10px 16px;font-size:14px;">+ 新建任务</button>
+      <div style="display:flex;gap:10px;flex:0 0 auto;">
+        <button id="newFolderBtn" class="btn-ghost" style="padding:10px 14px;font-size:13px;">📁 + 新建目录</button>
+        <button id="newTaskBtn" style="padding:10px 16px;font-size:14px;">+ 新建任务</button>
+      </div>
     </div>
-    <p class="subtitle">点击「新建任务」上传视频，自动完成转 MP3 与说话人分离识别。</p>
+    <p class="subtitle">所有任务均归属于任务目录文件夹；点击「新建任务」上传视频或音频，自动完成转 MP3 与说话人分离识别。</p>
 
-    <h2>📋 任务列表</h2>
+    <h2>📂 任务目录文件夹 <span class="drag-hint">（可拖拽目录调整顺序，或将下方任务拖拽到目录中移动）</span></h2>
+    <div class="folder-bar" id="folderBar"></div>
+
+    <h2 id="taskListTitle">📋 任务列表</h2>
     <div id="taskList"><div class="empty">加载中…</div></div>
   </div>
 
@@ -220,7 +423,15 @@
   <div class="card hidden" id="createView">
     <button class="btn-ghost" id="createBackBtn">← 返回任务列表</button>
     <h1 style="margin-top:16px;">新建任务</h1>
-    <p class="subtitle">填写任务标题与描述后一键完成：转 MP3 → 上传 → 说话人分离识别。</p>
+    <p class="subtitle">选择所属目录文件夹并填写任务标题后，一键完成：转 MP3 → 上传 → 说话人分离识别。</p>
+
+    <div class="field">
+      <label for="folderSelect">所属目录文件夹（必选）</label>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <select id="folderSelect" style="flex:1;min-width:200px;"></select>
+        <button type="button" id="addFolderBtn" class="btn-ghost" style="margin-top:0;white-space:nowrap;">+ 新建目录</button>
+      </div>
+    </div>
 
     <div class="field">
       <label for="taskTitle">任务标题（必填）</label>
@@ -233,11 +444,11 @@
 
     <div class="drop" id="drop">
       <div class="icon">🎬</div>
-      <div>点击或拖拽视频文件到此处</div>
-      <div class="hint">支持 MP4 / MOV / MKV / AVI / WEBM</div>
+      <div>点击或拖拽视频 / 音频文件到此处</div>
+      <div class="hint">支持视频（MP4 / MOV / MKV / AVI / WEBM / M4V）与音频（MP3 / WAV / M4A / FLAC / AAC / OGG / OPUS / WMA / AMR 等）</div>
       <div class="filename" id="filename"></div>
     </div>
-    <input type="file" id="fileInput" accept="video/*,.mp4,.mov,.mkv,.avi,.webm,.m4v" hidden />
+    <input type="file" id="fileInput" accept="video/*,audio/*,.mp4,.mov,.mkv,.avi,.webm,.m4v,.mp3,.wav,.m4a,.flac,.aac,.ogg,.oga,.opus,.wma,.amr,.aiff,.aif,.caf,.mka,.ac3" hidden />
 
     <div class="row">
       <label for="modelSelect">ASR 模型</label>
@@ -338,6 +549,7 @@
         if (resp.ok && data.ok) {
           ACCESS_TOKEN = data.token;
           showOnly(appView);
+          loadFolders();
           loadTasks();
           loadModels();
           return;
@@ -396,12 +608,265 @@
       } catch (e) { alert('新增失败：' + e.message); }
     });
 
+    // ===== 任务目录文件夹 =====
+    const folderSelect = document.getElementById('folderSelect');
+    const folderBar = document.getElementById('folderBar');
+    const taskListTitle = document.getElementById('taskListTitle');
+    let allFolders = ['默认目录'];
+    let allTasksCache = [];
+    let currentFolder = '默认目录'; // 当前选中的目录文件夹（'__ALL__' 表示全部）
+
+    function populateFolderSelect(selectName) {
+      folderSelect.innerHTML = '';
+      allFolders.forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f;
+        opt.textContent = '📁 ' + f;
+        folderSelect.appendChild(opt);
+      });
+      const target = selectName || (currentFolder !== '__ALL__' ? currentFolder : allFolders[0]);
+      if (target && allFolders.includes(target)) {
+        folderSelect.value = target;
+      }
+    }
+
+    async function loadFolders(selectName) {
+      try {
+        const resp = await fetch('/folders', { headers: { 'X-Access-Token': ACCESS_TOKEN } });
+        if (resp.status === 401) { forceRelogin(); return; }
+        const data = await resp.json();
+        if (Array.isArray(data.folders) && data.folders.length) {
+          allFolders = data.folders;
+        }
+        if (currentFolder !== '__ALL__' && !allFolders.includes(currentFolder)) {
+          currentFolder = allFolders[0] || '默认目录';
+        }
+        populateFolderSelect(selectName);
+        renderFolderBar();
+      } catch (e) { /* 忽略 */ }
+    }
+
+    async function promptAddFolder(selectInForm) {
+      const name = (prompt('请输入新任务目录文件夹名称：') || '').trim();
+      if (!name) return;
+      try {
+        const resp = await fetch('/folders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Access-Token': ACCESS_TOKEN },
+          body: JSON.stringify({ name: name })
+        });
+        if (resp.status === 401) { forceRelogin(); return; }
+        const data = await resp.json();
+        if (resp.ok && data.ok) {
+          allFolders = data.folders || allFolders;
+          currentFolder = name;
+          populateFolderSelect(selectInForm ? name : undefined);
+          renderFolderBar();
+          renderTasks(allTasksCache);
+        } else {
+          alert(data.error || '新建目录失败');
+        }
+      } catch (e) {
+        alert('新建目录失败：' + e.message);
+      }
+    }
+
+    async function deleteFolder(name) {
+      if (!confirm('确定删除空目录「' + name + '」吗？')) return;
+      try {
+        const resp = await fetch('/folders', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json', 'X-Access-Token': ACCESS_TOKEN },
+          body: JSON.stringify({ name: name })
+        });
+        if (resp.status === 401) { forceRelogin(); return; }
+        const data = await resp.json();
+        if (resp.ok && data.ok) {
+          allFolders = data.folders || allFolders;
+          if (currentFolder === name) currentFolder = allFolders[0] || '默认目录';
+          populateFolderSelect();
+          renderFolderBar();
+          renderTasks(allTasksCache);
+        } else {
+          alert(data.error || '删除目录失败');
+        }
+      } catch (e) {
+        alert('删除目录失败：' + e.message);
+      }
+    }
+
+    let dragState = null; // { type: 'folder' | 'task', folder?: string, taskId?: string, fromFolder?: string }
+
+    async function saveFolderOrder(newFolders) {
+      try {
+        const resp = await fetch('/folders/order', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'X-Access-Token': ACCESS_TOKEN },
+          body: JSON.stringify({ folders: newFolders })
+        });
+        if (resp.status === 401) { forceRelogin(); return; }
+        const data = await resp.json();
+        if (resp.ok && data.ok && Array.isArray(data.folders)) {
+          allFolders = data.folders;
+          populateFolderSelect();
+          renderFolderBar();
+        }
+      } catch (e) { /* 忽略 */ }
+    }
+
+    async function moveTaskToFolder(taskId, targetFolder) {
+      try {
+        const resp = await fetch('/tasks/' + encodeURIComponent(taskId) + '/move', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Access-Token': ACCESS_TOKEN },
+          body: JSON.stringify({ folder: targetFolder })
+        });
+        if (resp.status === 401) { forceRelogin(); return; }
+        const data = await resp.json();
+        if (resp.ok && data.ok) {
+          const item = allTasksCache.find(x => x.id === taskId);
+          if (item) item.folder = targetFolder;
+          if (Array.isArray(data.folders) && data.folders.length) {
+            allFolders = data.folders;
+          }
+          populateFolderSelect();
+          renderFolderBar();
+          renderTasks(allTasksCache);
+        } else {
+          alert(data.error || '移动任务失败');
+        }
+      } catch (e) {
+        alert('移动任务失败：' + e.message);
+      }
+    }
+
+    function renderFolderBar() {
+      if (!folderBar) return;
+      const counts = {};
+      allFolders.forEach(f => { counts[f] = 0; });
+      allTasksCache.forEach(t => {
+        const f = t.folder || '默认目录';
+        counts[f] = (counts[f] || 0) + 1;
+      });
+
+      folderBar.innerHTML = '';
+
+      // 各个目录文件夹标签（支持拖拽排序 + 接收任务拖入）
+      allFolders.forEach(f => {
+        const chip = document.createElement('div');
+        chip.className = 'folder-chip' + (currentFolder === f ? ' active' : '');
+        chip.setAttribute('draggable', 'true');
+        chip.dataset.folder = f;
+        const cnt = counts[f] || 0;
+        const canDel = allFolders.length > 1 && cnt === 0;
+        chip.innerHTML =
+          '<span>📁 ' + escapeHtml(f) + '</span>' +
+          '<span class="f-count">' + cnt + '</span>' +
+          (canDel ? '<span class="f-del" title="删除空目录">✕</span>' : '');
+
+        chip.addEventListener('click', () => {
+          currentFolder = f;
+          renderFolderBar();
+          renderTasks(allTasksCache);
+        });
+
+        // 拖拽开始（目录排序）
+        chip.addEventListener('dragstart', (e) => {
+          dragState = { type: 'folder', folder: f };
+          chip.classList.add('dragging');
+          if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', JSON.stringify(dragState));
+          }
+        });
+
+        chip.addEventListener('dragend', () => {
+          chip.classList.remove('dragging');
+          dragState = null;
+          folderBar.querySelectorAll('.folder-chip').forEach(c => {
+            c.classList.remove('drag-over-folder', 'drag-over-task');
+          });
+        });
+
+        // 拖拽经过目录（可能是在拖拽目录排序，也可能是在拖拽任务移入目录）
+        chip.addEventListener('dragover', (e) => {
+          if (!dragState) return;
+          if (dragState.type === 'folder' && dragState.folder !== f) {
+            e.preventDefault();
+            if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+            chip.classList.add('drag-over-folder');
+          } else if (dragState.type === 'task' && dragState.fromFolder !== f) {
+            e.preventDefault();
+            if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+            chip.classList.add('drag-over-task');
+          }
+        });
+
+        chip.addEventListener('dragleave', () => {
+          chip.classList.remove('drag-over-folder', 'drag-over-task');
+        });
+
+        chip.addEventListener('drop', (e) => {
+          e.preventDefault();
+          chip.classList.remove('drag-over-folder', 'drag-over-task');
+          let state = dragState;
+          if (!state && e.dataTransfer) {
+            try { state = JSON.parse(e.dataTransfer.getData('text/plain')); } catch (_) {}
+          }
+          dragState = null;
+          if (!state) return;
+
+          if (state.type === 'folder' && state.folder && state.folder !== f) {
+            const fromIdx = allFolders.indexOf(state.folder);
+            const toIdx = allFolders.indexOf(f);
+            if (fromIdx !== -1 && toIdx !== -1) {
+              // 交换两个目录文件夹的顺序
+              const nextOrder = allFolders.slice();
+              const tmp = nextOrder[fromIdx];
+              nextOrder[fromIdx] = nextOrder[toIdx];
+              nextOrder[toIdx] = tmp;
+              allFolders = nextOrder;
+              populateFolderSelect();
+              renderFolderBar();
+              saveFolderOrder(nextOrder);
+            }
+          } else if (state.type === 'task' && state.taskId && state.fromFolder !== f) {
+            moveTaskToFolder(state.taskId, f);
+          }
+        });
+
+        const delBtn = chip.querySelector('.f-del');
+        if (delBtn) {
+          delBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteFolder(f);
+          });
+        }
+        folderBar.appendChild(chip);
+      });
+
+      // 「全部」汇总标签
+      const allChip = document.createElement('div');
+      allChip.className = 'folder-chip' + (currentFolder === '__ALL__' ? ' active' : '');
+      allChip.innerHTML = '<span>🗂 全部目录</span><span class="f-count">' + allTasksCache.length + '</span>';
+      allChip.addEventListener('click', () => {
+        currentFolder = '__ALL__';
+        renderFolderBar();
+        renderTasks(allTasksCache);
+      });
+      folderBar.appendChild(allChip);
+    }
+
+    document.getElementById('newFolderBtn').addEventListener('click', () => promptAddFolder(false));
+    document.getElementById('addFolderBtn').addEventListener('click', () => promptAddFolder(true));
+
     // 新建任务 / 返回 视图切换
     document.getElementById('newTaskBtn').addEventListener('click', () => {
       resetForm();
       progress.style.display = 'none';
       result.style.display = 'none';
       if (!modelSelect.options.length) loadModels();
+      populateFolderSelect(currentFolder !== '__ALL__' ? currentFolder : allFolders[0]);
       showOnly(createView);
     });
     document.getElementById('createBackBtn').addEventListener('click', () => {
@@ -439,10 +904,13 @@
     convertBtn.addEventListener('click', () => {
       if (!selectedFile) return;
       if (!ACCESS_TOKEN) { forceRelogin(); return; }
+      const chosenFolder = (folderSelect.value || '').trim();
+      if (!chosenFolder) { alert('请先选择或新建所属任务目录文件夹'); folderSelect.focus(); return; }
       if (!titleEl.value.trim()) { alert('请先填写任务标题'); titleEl.focus(); return; }
 
       const formData = new FormData();
       formData.append('file', selectedFile);
+      formData.append('folder', chosenFolder);
       formData.append('bitrate', bitrateEl.value);
       formData.append('title', titleEl.value.trim());
       formData.append('description', descEl.value.trim());
@@ -473,6 +941,7 @@
         try { data = JSON.parse(xhr.responseText); } catch (_) {}
         if (xhr.status === 200 && data.ok) {
           // 文件已上传到服务器，后台线程处理中：此时关闭网页也不影响任务
+          currentFolder = chosenFolder;
           resetForm();
           showOnly(appView);
           loadTasks();
@@ -542,6 +1011,15 @@
         if (resp.status === 401) { forceRelogin(); return; }
         const data = await resp.json();
         const tasks = data.tasks || [];
+        allTasksCache = tasks;
+        if (Array.isArray(data.folders) && data.folders.length) {
+          allFolders = data.folders;
+          if (currentFolder !== '__ALL__' && !allFolders.includes(currentFolder)) {
+            currentFolder = allFolders[0] || '默认目录';
+          }
+          populateFolderSelect();
+        }
+        renderFolderBar();
         renderTasks(tasks);
         // 有进行中的任务则自动轮询刷新状态
         const active = tasks.some(t => ACTIVE_STATUS.includes(t.status));
@@ -556,13 +1034,31 @@
     }
 
     function renderTasks(tasks) {
-      if (!tasks.length) { taskList.innerHTML = '<div class="empty">暂无任务，创建你的第一个任务吧。</div>'; return; }
+      const filtered = (currentFolder === '__ALL__')
+        ? tasks
+        : tasks.filter(t => (t.folder || '默认目录') === currentFolder);
+
+      if (taskListTitle) {
+        taskListTitle.textContent = (currentFolder === '__ALL__')
+          ? '📋 全部目录任务列表（' + filtered.length + '）'
+          : '📋 目录「' + currentFolder + '」下的任务（' + filtered.length + '）';
+      }
+
+      if (!filtered.length) {
+        const msg = (currentFolder === '__ALL__')
+          ? '暂无任务，点击右上角「+ 新建任务」创建吧。'
+          : '目录「' + escapeHtml(currentFolder) + '」下暂无任务，点击右上角「+ 新建任务」在此目录下创建吧。';
+        taskList.innerHTML = '<div class="empty">' + msg + '</div>';
+        return;
+      }
       taskList.innerHTML = '';
-      tasks.forEach(t => {
+      filtered.forEach(t => {
         const card = document.createElement('div');
         card.className = 'task-card';
+        card.setAttribute('draggable', 'true');
         const st = t.status || 'created';
         const spk = (t.speaker_count != null) ? ('· ' + t.speaker_count + ' 位说话人') : '';
+        const folderName = t.folder || '默认目录';
         const retryBtn = (st === 'failed') ? '<button class="btn-retry" title="重试">↻ 重试</button>' : '';
         card.innerHTML =
           '<div class="t-head">' +
@@ -572,8 +1068,29 @@
           (t.description ? '<div class="t-desc">' + escapeHtml(t.description) + '</div>' : '') +
           '<div class="t-foot">' +
           '<span class="badge ' + st + '">' + (STATUS_LABEL[st] || st) + '</span>' +
+          '<span class="folder-tag">📁 ' + escapeHtml(folderName) + '</span>' +
           '<span>' + escapeHtml(t.created_at || '') + '</span>' +
           '<span>' + spk + '</span></div>';
+
+        card.addEventListener('dragstart', (e) => {
+          dragState = { type: 'task', taskId: t.id, fromFolder: folderName };
+          card.classList.add('dragging');
+          if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', JSON.stringify(dragState));
+          }
+        });
+
+        card.addEventListener('dragend', () => {
+          card.classList.remove('dragging');
+          dragState = null;
+          if (folderBar) {
+            folderBar.querySelectorAll('.folder-chip').forEach(c => {
+              c.classList.remove('drag-over-folder', 'drag-over-task');
+            });
+          }
+        });
+
         card.addEventListener('click', () => openDetail(t.id));
         card.querySelector('.btn-del').addEventListener('click', (e) => {
           e.stopPropagation();
@@ -610,7 +1127,7 @@
       } catch (e) { if (!silent) alert('加载详情失败：' + e.message); }
     }
 
-    const SPEAKER_COLORS = ['#6366f1','#0ea5e9','#22c55e','#f59e0b','#ec4899','#a855f7','#14b8a6','#ef4444'];
+    const SPEAKER_COLORS = ['#2563eb','#0d9488','#0284c7','#059669','#d97706','#475569','#ea580c','#e11d48'];
 
     let currentDetailTask = null;
     document.getElementById('detailDelBtn').addEventListener('click', async () => {
@@ -639,7 +1156,8 @@
       document.getElementById('dTitle').textContent = task.title || '(无标题)';
       document.getElementById('dDesc').textContent = task.description ? ('描述：' + task.description) : '（无描述）';
       const st = task.status || 'created';
-      let metaHtml = '状态：' + (STATUS_LABEL[st] || st) + '　·　创建于 ' + (task.created_at || '');
+      const folderName = task.folder || '默认目录';
+      let metaHtml = '目录：📁 ' + escapeHtml(folderName) + '　·　状态：' + (STATUS_LABEL[st] || st) + '　·　创建于 ' + (task.created_at || '');
       if (task.model) metaHtml += '　·　模型 ' + escapeHtml(task.model);
       if (task.mp3_size_mb != null) metaHtml += '　·　MP3 ' + task.mp3_size_mb + ' MB';
       if (task.error) metaHtml += '<br>错误：' + escapeHtml(task.error);
